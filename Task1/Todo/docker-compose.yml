@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  frontend:
+    build: ./Todo-Frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./Todo-Backend
+    ports:
+      - "3001:3001"
