@@ -1,0 +1,46 @@
+Github Clone from a Repo
+
+Microsoft Windows [Version 10.0.19045.4780]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\VC\Desktop\Todo2\Presidio-DataMigrationTraining>git remote add azure https://sanjairagulmurugesan@dev.azure.com/sanjairagulmurugesan/Todo/_git/Todo
+
+C:\Users\VC\Desktop\Todo2\Presidio-DataMigrationTraining>git push azure --all
+Enumerating objects: 1670, done.
+Counting objects: 100% (1670/1670), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (1438/1438), done.
+Writing objects: 100% (1670/1670), 2.82 MiB | 1.41 MiB/s, done.
+Total 1670 (delta 176), reused 1670 (delta 176), pack-reused 0 (from 0)
+remote: Analyzing objects... (1670/1670) (1603 ms)
+remote: Validating commits... (1/1) done (4 ms)
+remote: Storing packfile... done (104 ms)
+remote: Storing index... done (39 ms)
+To https://dev.azure.com/sanjairagulmurugesan/Todo/_git/Todo
+ * [new branch]      master -> master
+
+C:\Users\VC\Desktop\Todo2\Presidio-DataMigrationTraining>git push azure --tags
+Everything up-to-date
+
+C:\Users\VC\Desktop\Todo2\Presidio-DataMigrationTraining>
+
+
+Repo To Azure Devops Migration
+
+Microsoft Windows [Version 10.0.19045.4780]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\VC\Desktop\Todo2>git init
+Initialized empty Git repository in C:/Users/VC/Desktop/Todo2/.git/
+
+C:\Users\VC\Desktop\Todo2>git clone https://github.com/SANJAIRAGUL-MURUGESAN/Presidio-DataMigrationTraining
+Cloning into 'Presidio-DataMigrationTraining'...
+remote: Enumerating objects: 1670, done.
+remote: Counting objects: 100% (1670/1670), done.
+remote: Compressing objects: 100% (1438/1438), done.
+remote: Total 1670 (delta 176), reused 1670 (delta 176), pack-reused 0 (from 0)
+Receiving objects: 100% (1670/1670), 2.82 MiB | 1.36 MiB/s, done.
+Resolving deltas: 100% (176/176), done.
+Updating files: 100% (1458/1458), done.
+
+C:\Users\VC\Desktop\Todo2>
