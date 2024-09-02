@@ -1,0 +1,688 @@
+/******** DMA Schema Migration Deployment Script      Script Date: 02-09-2024 13:48:14 ********/
+
+/****** Object:  Table [dbo].[product_tgt]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[product_tgt]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[product_tgt](
+	[product_id] [int] NOT NULL,
+	[product_name] [nvarchar](100) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[category] [nvarchar](100) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[price] [decimal](18, 2) NULL,
+	[available_quantity] [int] NULL,
+	[IsDeleted] [bit] NULL,
+ CONSTRAINT [PK__product___47027DF53511D918] PRIMARY KEY CLUSTERED 
+(
+	[product_id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF__product_t__IsDel__71D1E811]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[product_tgt] ADD  CONSTRAINT [DF__product_t__IsDel__71D1E811]  DEFAULT ((0)) FOR [IsDeleted]
+END
+
+GO
+/****** Object:  Table [dbo].[product_src]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[product_src]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[product_src](
+	[product_id] [int] IDENTITY(1,1) NOT NULL,
+	[product_name] [nvarchar](100) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[category] [nvarchar](100) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
+	[price] [decimal](18, 2) NULL,
+	[available_quantity] [int] NULL,
+ CONSTRAINT [PK__product___47027DF567EC034C] PRIMARY KEY CLUSTERED 
+(
+	[product_id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+/****** Object:  StoredProcedure [dbo].[product_sync]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[product_sync]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[product_sync] AS' 
+END
+GO
+
+ALTER   PROCEDURE [dbo].[product_sync]
+(
+    @debugFL INT = 0
+)
+AS
+BEGIN
+    PRINT 'Product table sync Started';
+    IF @debugFL = 1 
+    BEGIN
+        SELECT * FROM product_src;
+        SELECT * FROM product_tgt;
+    END
+
+	--INSERT
+    INSERT INTO product_tgt (product_id, product_name, category, price, available_quantity)
+    SELECT s.product_id, s.product_name, s.category, s.price, s.available_quantity
+    FROM product_src s
+    LEFT JOIN product_tgt t ON s.product_id = t.product_id
+    WHERE t.product_id IS NULL;
+
+	--UPDATE
+    UPDATE tgt
+    SET 
+        tgt.product_name = src.product_name,
+        tgt.category = src.category,
+        tgt.price = src.price,
+        tgt.available_quantity = src.available_quantity
+    FROM product_tgt tgt
+    INNER JOIN product_src src ON tgt.product_id = src.product_id
+    WHERE 
+        (tgt.product_name != src.product_name OR
+        tgt.category != src.category OR
+        tgt.price != src.price OR
+        tgt.available_quantity != src.available_quantity);
+
+	-- SOFT DELETE
+    UPDATE tgt
+    SET tgt.IsDeleted = 1
+    FROM product_tgt tgt
+    LEFT JOIN product_src s ON tgt.product_id = s.product_id
+    WHERE s.product_id IS NULL AND tgt.IsDeleted = 0;
+
+	PRINT 'Product table sync Ended';
+END;
+
+
+EXECUTE product_sync @debugFL = 0
+EXECUTE product_sync @debugFL = 1
+
+GO
+/****** Object:  Table [dbo].[__EFMigrationsHistory]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[__EFMigrationsHistory]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[__EFMigrationsHistory](
+	[MigrationId] [nvarchar](150) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[ProductVersion] [nvarchar](32) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY CLUSTERED 
+(
+	[MigrationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+/****** Object:  Table [dbo].[Admins]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Admins]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Admins](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[Name] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Email] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[PhoneNumber] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Gender] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Disability] [bit] NOT NULL,
+	[Address] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Password] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK_Admins] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+/****** Object:  Table [dbo].[Stations]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Stations]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Stations](
+	[StationId] [int] IDENTITY(1,1) NOT NULL,
+	[StationName] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[StationState] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[StationPincode] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK_Stations] PRIMARY KEY CLUSTERED 
+(
+	[StationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+/****** Object:  Table [dbo].[Trains]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Trains]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Trains](
+	[TrainId] [int] IDENTITY(1,1) NOT NULL,
+	[TrainName] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrainNumber] [int] NOT NULL,
+	[StartingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[EndingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrainStartDate] [datetime2](7) NOT NULL,
+	[TrainEndDate] [datetime2](7) NOT NULL,
+	[ArrivalTime] [datetime2](7) NOT NULL,
+	[DepartureTime] [datetime2](7) NOT NULL,
+	[TotalSeats] [int] NOT NULL,
+	[PricePerKM] [real] NOT NULL,
+	[TrainStatus] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK_Trains] PRIMARY KEY CLUSTERED 
+(
+	[TrainId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+/****** Object:  Table [dbo].[Users]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Users]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Users](
+	[Id] [int] IDENTITY(1,1) NOT NULL,
+	[Name] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Email] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[PhoneNumber] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Gender] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Disability] [bit] NOT NULL,
+	[Address] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK_Users] PRIMARY KEY CLUSTERED 
+(
+	[Id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+/****** Object:  Table [dbo].[Tracks]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Tracks]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Tracks](
+	[TrackId] [int] IDENTITY(1,1) NOT NULL,
+	[TrackNumber] [int] NOT NULL,
+	[TrackStatus] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrackStartingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrackEndingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[StationId] [int] NOT NULL,
+ CONSTRAINT [PK_Tracks] PRIMARY KEY CLUSTERED 
+(
+	[TrackId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Tracks]') AND name = N'IX_Tracks_StationId')
+CREATE NONCLUSTERED INDEX [IX_Tracks_StationId] ON [dbo].[Tracks]
+(
+	[StationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[TrainClasses]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TrainClasses]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[TrainClasses](
+	[ClassId] [int] IDENTITY(1,1) NOT NULL,
+	[ClassName] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[ClassPrice] [real] NOT NULL,
+	[StartingSeatNumber] [int] NOT NULL,
+	[EndingSeatNumber] [int] NOT NULL,
+	[TrainId] [int] NOT NULL,
+ CONSTRAINT [PK_TrainClasses] PRIMARY KEY CLUSTERED 
+(
+	[ClassId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[TrainClasses]') AND name = N'IX_TrainClasses_TrainId')
+CREATE NONCLUSTERED INDEX [IX_TrainClasses_TrainId] ON [dbo].[TrainClasses]
+(
+	[TrainId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[TrainRoutes]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TrainRoutes]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[TrainRoutes](
+	[RouteId] [int] IDENTITY(1,1) NOT NULL,
+	[RouteStartDate] [datetime2](7) NOT NULL,
+	[RouteEndDate] [datetime2](7) NOT NULL,
+	[ArrivalTime] [datetime2](7) NOT NULL,
+	[DepartureTime] [datetime2](7) NOT NULL,
+	[StopNumber] [int] NOT NULL,
+	[KilometerDistance] [real] NOT NULL,
+	[TrainId] [int] NOT NULL,
+	[StationId] [int] NOT NULL,
+	[TrackId] [int] NOT NULL,
+	[TrackNumber] [int] NOT NULL,
+ CONSTRAINT [PK_TrainRoutes] PRIMARY KEY CLUSTERED 
+(
+	[RouteId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[TrainRoutes]') AND name = N'IX_TrainRoutes_StationId')
+CREATE NONCLUSTERED INDEX [IX_TrainRoutes_StationId] ON [dbo].[TrainRoutes]
+(
+	[StationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[TrainRoutes]') AND name = N'IX_TrainRoutes_TrainId')
+CREATE NONCLUSTERED INDEX [IX_TrainRoutes_TrainId] ON [dbo].[TrainRoutes]
+(
+	[TrainId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[Reservations]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Reservations]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Reservations](
+	[ReservationId] [int] IDENTITY(1,1) NOT NULL,
+	[ReservationDate] [datetime2](7) NOT NULL,
+	[StartingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[EndingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrainDate] [datetime2](7) NOT NULL,
+	[Amount] [real] NOT NULL,
+	[Status] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrainClassName] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[UserId] [int] NOT NULL,
+	[TrainId] [int] NOT NULL,
+ CONSTRAINT [PK_Reservations] PRIMARY KEY CLUSTERED 
+(
+	[ReservationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Reservations]') AND name = N'IX_Reservations_TrainId')
+CREATE NONCLUSTERED INDEX [IX_Reservations_TrainId] ON [dbo].[Reservations]
+(
+	[TrainId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Reservations]') AND name = N'IX_Reservations_UserId')
+CREATE NONCLUSTERED INDEX [IX_Reservations_UserId] ON [dbo].[Reservations]
+(
+	[UserId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[Rewards]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Rewards]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Rewards](
+	[RewardId] [int] IDENTITY(1,1) NOT NULL,
+	[RewardPoints] [real] NOT NULL,
+	[UserId] [int] NOT NULL,
+ CONSTRAINT [PK_Rewards] PRIMARY KEY CLUSTERED 
+(
+	[RewardId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Rewards]') AND name = N'IX_Rewards_UserId')
+CREATE NONCLUSTERED INDEX [IX_Rewards_UserId] ON [dbo].[Rewards]
+(
+	[UserId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[UserDetails]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserDetails]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[UserDetails](
+	[UserDetailsId] [int] IDENTITY(1,1) NOT NULL,
+	[UserId] [int] NOT NULL,
+	[Password] [varbinary](max) NOT NULL,
+	[PasswordHashKey] [varbinary](max) NOT NULL,
+	[Status] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK_UserDetails] PRIMARY KEY CLUSTERED 
+(
+	[UserDetailsId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[UserDetails]') AND name = N'IX_UserDetails_UserId')
+CREATE NONCLUSTERED INDEX [IX_UserDetails_UserId] ON [dbo].[UserDetails]
+(
+	[UserId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[UserSchedules]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UserSchedules]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[UserSchedules](
+	[ScheduleId] [int] IDENTITY(1,1) NOT NULL,
+	[StartingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[EndingPoint] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrainDate] [datetime2](7) NOT NULL,
+	[UserId] [int] NOT NULL,
+	[ScheduleStatus] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+ CONSTRAINT [PK_UserSchedules] PRIMARY KEY CLUSTERED 
+(
+	[ScheduleId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[UserSchedules]') AND name = N'IX_UserSchedules_UserId')
+CREATE NONCLUSTERED INDEX [IX_UserSchedules_UserId] ON [dbo].[UserSchedules]
+(
+	[UserId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[TrackReservations]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TrackReservations]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[TrackReservations](
+	[TrackReservationId] [int] IDENTITY(1,1) NOT NULL,
+	[TrackOccupiedStartTime] [datetime2](7) NULL,
+	[TrackOccupiedEndTime] [datetime2](7) NULL,
+	[TrackOccupiedStartDate] [datetime2](7) NULL,
+	[TrackOccupiedEndDate] [datetime2](7) NULL,
+	[ReservationStatus] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[TrackId] [int] NOT NULL,
+	[TrainId] [int] NOT NULL,
+ CONSTRAINT [PK_TrackReservations] PRIMARY KEY CLUSTERED 
+(
+	[TrackReservationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[TrackReservations]') AND name = N'IX_TrackReservations_TrackId')
+CREATE NONCLUSTERED INDEX [IX_TrackReservations_TrackId] ON [dbo].[TrackReservations]
+(
+	[TrackId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[Payments]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Payments]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Payments](
+	[PaymentId] [int] IDENTITY(1,1) NOT NULL,
+	[PaymentDate] [datetime2](7) NOT NULL,
+	[Amount] [real] NOT NULL,
+	[PaymentMethod] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[Status] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[ReservationId] [int] NOT NULL,
+ CONSTRAINT [PK_Payments] PRIMARY KEY CLUSTERED 
+(
+	[PaymentId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Payments]') AND name = N'IX_Payments_ReservationId')
+CREATE NONCLUSTERED INDEX [IX_Payments_ReservationId] ON [dbo].[Payments]
+(
+	[ReservationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[ReservationCancels]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ReservationCancels]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[ReservationCancels](
+	[ReservationCancelId] [int] IDENTITY(1,1) NOT NULL,
+	[ReservationCancelReason] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[SeatNumber] [int] NOT NULL,
+	[RefundAmount] [real] NOT NULL,
+	[UserId] [int] NOT NULL,
+	[ReservationId] [int] NOT NULL,
+ CONSTRAINT [PK_ReservationCancels] PRIMARY KEY CLUSTERED 
+(
+	[ReservationCancelId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ReservationCancels]') AND name = N'IX_ReservationCancels_ReservationId')
+CREATE NONCLUSTERED INDEX [IX_ReservationCancels_ReservationId] ON [dbo].[ReservationCancels]
+(
+	[ReservationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ReservationCancels]') AND name = N'IX_ReservationCancels_UserId')
+CREATE NONCLUSTERED INDEX [IX_ReservationCancels_UserId] ON [dbo].[ReservationCancels]
+(
+	[UserId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[Seats]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Seats]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Seats](
+	[SeatId] [int] IDENTITY(1,1) NOT NULL,
+	[SeatNumber] [int] NOT NULL,
+	[ReservationId] [int] NOT NULL,
+ CONSTRAINT [PK_Seats] PRIMARY KEY CLUSTERED 
+(
+	[SeatId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Seats]') AND name = N'IX_Seats_ReservationId')
+CREATE NONCLUSTERED INDEX [IX_Seats_ReservationId] ON [dbo].[Seats]
+(
+	[ReservationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+/****** Object:  Table [dbo].[Refunds]    Script Date: 02-09-2024 13:48:14 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Refunds]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Refunds](
+	[RefundId] [int] IDENTITY(1,1) NOT NULL,
+	[RefundAmount] [real] NOT NULL,
+	[RefundDate] [nvarchar](max) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
+	[ReservationCancelId] [int] NOT NULL,
+	[ReservationId] [int] NOT NULL,
+	[UserId] [int] NOT NULL,
+ CONSTRAINT [PK_Refunds] PRIMARY KEY CLUSTERED 
+(
+	[RefundId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+)
+END
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Refunds]') AND name = N'IX_Refunds_ReservationId')
+CREATE NONCLUSTERED INDEX [IX_Refunds_ReservationId] ON [dbo].[Refunds]
+(
+	[ReservationId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Refunds]') AND name = N'IX_Refunds_UserId')
+CREATE NONCLUSTERED INDEX [IX_Refunds_UserId] ON [dbo].[Refunds]
+(
+	[UserId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Tracks_Stations_StationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Tracks]'))
+ALTER TABLE [dbo].[Tracks]  WITH CHECK ADD  CONSTRAINT [FK_Tracks_Stations_StationId] FOREIGN KEY([StationId])
+REFERENCES [dbo].[Stations] ([StationId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Tracks_Stations_StationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Tracks]'))
+ALTER TABLE [dbo].[Tracks] CHECK CONSTRAINT [FK_Tracks_Stations_StationId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrainClasses_Trains_TrainId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrainClasses]'))
+ALTER TABLE [dbo].[TrainClasses]  WITH CHECK ADD  CONSTRAINT [FK_TrainClasses_Trains_TrainId] FOREIGN KEY([TrainId])
+REFERENCES [dbo].[Trains] ([TrainId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrainClasses_Trains_TrainId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrainClasses]'))
+ALTER TABLE [dbo].[TrainClasses] CHECK CONSTRAINT [FK_TrainClasses_Trains_TrainId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrainRoutes_Stations_StationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrainRoutes]'))
+ALTER TABLE [dbo].[TrainRoutes]  WITH CHECK ADD  CONSTRAINT [FK_TrainRoutes_Stations_StationId] FOREIGN KEY([StationId])
+REFERENCES [dbo].[Stations] ([StationId])
+ON DELETE CASCADE
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrainRoutes_Stations_StationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrainRoutes]'))
+ALTER TABLE [dbo].[TrainRoutes] CHECK CONSTRAINT [FK_TrainRoutes_Stations_StationId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrainRoutes_Trains_TrainId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrainRoutes]'))
+ALTER TABLE [dbo].[TrainRoutes]  WITH CHECK ADD  CONSTRAINT [FK_TrainRoutes_Trains_TrainId] FOREIGN KEY([TrainId])
+REFERENCES [dbo].[Trains] ([TrainId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrainRoutes_Trains_TrainId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrainRoutes]'))
+ALTER TABLE [dbo].[TrainRoutes] CHECK CONSTRAINT [FK_TrainRoutes_Trains_TrainId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Reservations_Trains_TrainId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Reservations]'))
+ALTER TABLE [dbo].[Reservations]  WITH CHECK ADD  CONSTRAINT [FK_Reservations_Trains_TrainId] FOREIGN KEY([TrainId])
+REFERENCES [dbo].[Trains] ([TrainId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Reservations_Trains_TrainId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Reservations]'))
+ALTER TABLE [dbo].[Reservations] CHECK CONSTRAINT [FK_Reservations_Trains_TrainId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Reservations_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Reservations]'))
+ALTER TABLE [dbo].[Reservations]  WITH CHECK ADD  CONSTRAINT [FK_Reservations_Users_UserId] FOREIGN KEY([UserId])
+REFERENCES [dbo].[Users] ([Id])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Reservations_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Reservations]'))
+ALTER TABLE [dbo].[Reservations] CHECK CONSTRAINT [FK_Reservations_Users_UserId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Rewards_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Rewards]'))
+ALTER TABLE [dbo].[Rewards]  WITH CHECK ADD  CONSTRAINT [FK_Rewards_Users_UserId] FOREIGN KEY([UserId])
+REFERENCES [dbo].[Users] ([Id])
+ON DELETE CASCADE
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Rewards_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Rewards]'))
+ALTER TABLE [dbo].[Rewards] CHECK CONSTRAINT [FK_Rewards_Users_UserId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_UserDetails_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[UserDetails]'))
+ALTER TABLE [dbo].[UserDetails]  WITH CHECK ADD  CONSTRAINT [FK_UserDetails_Users_UserId] FOREIGN KEY([UserId])
+REFERENCES [dbo].[Users] ([Id])
+ON DELETE CASCADE
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_UserDetails_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[UserDetails]'))
+ALTER TABLE [dbo].[UserDetails] CHECK CONSTRAINT [FK_UserDetails_Users_UserId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_UserSchedules_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[UserSchedules]'))
+ALTER TABLE [dbo].[UserSchedules]  WITH CHECK ADD  CONSTRAINT [FK_UserSchedules_Users_UserId] FOREIGN KEY([UserId])
+REFERENCES [dbo].[Users] ([Id])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_UserSchedules_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[UserSchedules]'))
+ALTER TABLE [dbo].[UserSchedules] CHECK CONSTRAINT [FK_UserSchedules_Users_UserId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrackReservations_Tracks_TrackId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrackReservations]'))
+ALTER TABLE [dbo].[TrackReservations]  WITH CHECK ADD  CONSTRAINT [FK_TrackReservations_Tracks_TrackId] FOREIGN KEY([TrackId])
+REFERENCES [dbo].[Tracks] ([TrackId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_TrackReservations_Tracks_TrackId]') AND parent_object_id = OBJECT_ID(N'[dbo].[TrackReservations]'))
+ALTER TABLE [dbo].[TrackReservations] CHECK CONSTRAINT [FK_TrackReservations_Tracks_TrackId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Payments_Reservations_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Payments]'))
+ALTER TABLE [dbo].[Payments]  WITH CHECK ADD  CONSTRAINT [FK_Payments_Reservations_ReservationId] FOREIGN KEY([ReservationId])
+REFERENCES [dbo].[Reservations] ([ReservationId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Payments_Reservations_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Payments]'))
+ALTER TABLE [dbo].[Payments] CHECK CONSTRAINT [FK_Payments_Reservations_ReservationId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ReservationCancels_Reservations_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[ReservationCancels]'))
+ALTER TABLE [dbo].[ReservationCancels]  WITH CHECK ADD  CONSTRAINT [FK_ReservationCancels_Reservations_ReservationId] FOREIGN KEY([ReservationId])
+REFERENCES [dbo].[Reservations] ([ReservationId])
+ON DELETE CASCADE
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ReservationCancels_Reservations_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[ReservationCancels]'))
+ALTER TABLE [dbo].[ReservationCancels] CHECK CONSTRAINT [FK_ReservationCancels_Reservations_ReservationId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ReservationCancels_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[ReservationCancels]'))
+ALTER TABLE [dbo].[ReservationCancels]  WITH CHECK ADD  CONSTRAINT [FK_ReservationCancels_Users_UserId] FOREIGN KEY([UserId])
+REFERENCES [dbo].[Users] ([Id])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ReservationCancels_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[ReservationCancels]'))
+ALTER TABLE [dbo].[ReservationCancels] CHECK CONSTRAINT [FK_ReservationCancels_Users_UserId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Seats_Reservations_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Seats]'))
+ALTER TABLE [dbo].[Seats]  WITH CHECK ADD  CONSTRAINT [FK_Seats_Reservations_ReservationId] FOREIGN KEY([ReservationId])
+REFERENCES [dbo].[Reservations] ([ReservationId])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Seats_Reservations_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Seats]'))
+ALTER TABLE [dbo].[Seats] CHECK CONSTRAINT [FK_Seats_Reservations_ReservationId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Refunds_ReservationCancels_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Refunds]'))
+ALTER TABLE [dbo].[Refunds]  WITH CHECK ADD  CONSTRAINT [FK_Refunds_ReservationCancels_ReservationId] FOREIGN KEY([ReservationId])
+REFERENCES [dbo].[ReservationCancels] ([ReservationCancelId])
+ON DELETE CASCADE
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Refunds_ReservationCancels_ReservationId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Refunds]'))
+ALTER TABLE [dbo].[Refunds] CHECK CONSTRAINT [FK_Refunds_ReservationCancels_ReservationId]
+GO
+IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Refunds_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Refunds]'))
+ALTER TABLE [dbo].[Refunds]  WITH CHECK ADD  CONSTRAINT [FK_Refunds_Users_UserId] FOREIGN KEY([UserId])
+REFERENCES [dbo].[Users] ([Id])
+GO
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_Refunds_Users_UserId]') AND parent_object_id = OBJECT_ID(N'[dbo].[Refunds]'))
+ALTER TABLE [dbo].[Refunds] CHECK CONSTRAINT [FK_Refunds_Users_UserId]
+GO
+
